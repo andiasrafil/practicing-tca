@@ -13,6 +13,7 @@ import ComposableArchitecture
 
 struct Home: ReducerProtocol {
     @Dependency(\.newsClient) var news
+    private enum FetchNewsID {}
     func reduce(into state: inout State, action: Action) -> EffectTask<Action> {
         switch action {
         case .onAppear:
@@ -20,7 +21,6 @@ struct Home: ReducerProtocol {
                 await .loadMovie( TaskResult { try await self.news.fetch() })
             }
         case let .loadMovie(.success(movie)):
-            
             state.movieList = movie
             return .none
         case let .loadMovie(.failure(error)):
@@ -30,6 +30,15 @@ struct Home: ReducerProtocol {
             return .none
         case .loadMoreMovie:
             return .none
+        case .refresh:
+            state.movieList = []
+            return .task {
+                await .loadMovie( TaskResult { try await self.news.fetch() })
+            }
+            .animation()
+            .cancellable(id: FetchNewsID.self)
+        case .cancelTapped:
+            return .cancel(id: FetchNewsID.self)
         }
     }
     
@@ -43,5 +52,7 @@ struct Home: ReducerProtocol {
         case loadMovie(TaskResult<[Articles]>)
         case movieTapped
         case loadMoreMovie
+        case refresh
+        case cancelTapped
     }
 }
